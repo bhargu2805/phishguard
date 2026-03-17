@@ -12,3 +12,4 @@ build/
 artifacts/
 data/
 .DS_Store
+!artifacts/metrics.json
