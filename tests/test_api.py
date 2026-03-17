@@ -1,6 +1,4 @@
 import os
-import tempfile
-import json
 
 import numpy as np
 import joblib

@@ -27,7 +27,6 @@ from sklearn.metrics import (
     accuracy_score,
     classification_report,
     precision_recall_fscore_support,
-    recall_score,
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
