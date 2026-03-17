@@ -5,7 +5,7 @@ A production-ready REST API for real-time phishing website detection using machi
 ## Demo
 
 ```bash
-curl -X POST https://phishguard.onrender.com/v1/predict \
+curl -X POST https://phishguard-eeff.onrender.com/v1/predict \
   -H "Content-Type: application/json" \
   -d '{"url": "http://paypal.verify-secure-login.suspicious-domain.net/confirm"}'
 ```
