@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhishGuard — URL Safety Checker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --safe: #0F6E56; --safe-bg: #E1F5EE; --safe-border: #1D9E75;
+      --danger: #993C1D; --danger-bg: #FAECE7; --danger-border: #D85A30;
+      --border: #E5E7EB; --text: #111827; --text-muted: #6B7280;
+      --bg: #F9FAFB; --white: #FFFFFF; --radius: 12px; --radius-sm: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    header { background: var(--white); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 32px; height: 32px; background: #111827; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .logo-text { font-size: 18px; font-weight: 600; }
+    .header-link { font-size: 13px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; }
+    .header-link:hover { background: var(--bg); }
+    main { max-width: 680px; margin: 0 auto; padding: 48px 24px; }
+    .hero { text-align: center; margin-bottom: 40px; }
+    .hero h1 { font-size: 36px; font-weight: 700; margin-bottom: 12px; line-height: 1.2; }
+    .hero p { font-size: 16px; color: var(--text-muted); line-height: 1.6; max-width: 480px; margin: 0 auto; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
+    .stat-number { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .stat-label { font-size: 12px; color: var(--text-muted); }
+    .checker { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+    .input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .url-input { flex: 1; padding: 12px 16px; font-size: 15px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); outline: none; }
+    .url-input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.08); background: var(--white); }
+    .url-input::placeholder { color: #9CA3AF; }
+    .check-btn { padding: 12px 24px; font-size: 14px; font-weight: 600; background: #111827; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; }
+    .check-btn:hover { background: #1F2937; }
+    .check-btn:active { transform: scale(0.98); }
+    .check-btn:disabled { background: #9CA3AF; cursor: not-allowed; }
+    .examples-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 12px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; cursor: pointer; color: var(--text-muted); background: var(--bg); }
+    .chip:hover { border-color: #111827; color: var(--text); background: var(--white); }
+    .chip.phishing { border-color: #FBBF85; color: var(--danger); background: #FFF7F5; }
+    .result { border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; border: 1px solid var(--border); background: var(--white); animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .result.safe { background: var(--safe-bg); border-color: var(--safe-border); }
+    .result.danger { background: var(--danger-bg); border-color: var(--danger-border); }
+    .result.error { background: #FEF2F2; border-color: #FECACA; }
+    .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .result-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .result-icon.safe { background: var(--safe-border); }
+    .result-icon.danger { background: var(--danger-border); }
+    .result-title { font-size: 18px; font-weight: 600; }
+    .result-title.safe { color: var(--safe); }
+    .result-title.danger { color: var(--danger); }
+    .result-url { font-size: 13px; color: var(--text-muted); font-family: monospace; word-break: break-all; margin-bottom: 16px; padding: 8px 12px; background: rgba(0,0,0,0.04); border-radius: 6px; }
+    .prob-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+    .prob-number { font-size: 40px; font-weight: 700; line-height: 1; }
+    .prob-number.safe { color: var(--safe); }
+    .prob-number.danger { color: var(--danger); }
+    .prob-label { font-size: 14px; color: var(--text-muted); }
+    .bar-track { height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+    .bar-fill.safe { background: var(--safe-border); }
+    .bar-fill.danger { background: var(--danger-border); }
+    .result-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+    .meta-item { font-size: 12px; color: var(--text-muted); }
+    .meta-item span { font-weight: 500; color: var(--text); }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .history { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; }
+    .history-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+    .history-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .history-item:last-child { border-bottom: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.safe { background: var(--safe-border); }
+    .dot.danger { background: var(--danger-border); }
+    .history-url { flex: 1; color: var(--text-muted); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .history-pct { font-weight: 600; font-size: 12px; flex-shrink: 0; }
+    .history-pct.safe { color: var(--safe); }
+    .history-pct.danger { color: var(--danger); }
+    footer { text-align: center; padding: 32px 24px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--border); background: var(--white); }
+    footer a { color: var(--text-muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+    @media (max-width: 480px) { .hero h1 { font-size: 26px; } .input-row { flex-direction: column; } .check-btn { width: 100%; } .stats { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2zm-1 13l-3-3 1.41-1.41L11 12.17l4.59-4.58L17 9l-6 6z"/></svg>
+    </div>
+    <span class="logo-text">PhishGuard</span>
+  </div>
+  <a href="https://github.com/bhargu2805/phishguard" target="_blank" class="header-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+    GitHub
+  </a>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Is this URL safe?</h1>
+    <p>Paste any link to instantly check if it's a phishing site. Powered by a machine learning model trained on 7,658 real phishing URLs.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-number">88.3%</div><div class="stat-label">Accuracy</div></div>
+    <div class="stat-card"><div class="stat-number">94.9%</div><div class="stat-label">ROC-AUC</div></div>
+    <div class="stat-card"><div class="stat-number" id="checksCount">0</div><div class="stat-label">URLs checked</div></div>
+  </div>
+
+  <div class="checker">
+    <div class="input-row">
+      <input class="url-input" id="urlInput" type="text" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+      <button class="check-btn" id="checkBtn" onclick="checkUrl()">Check URL</button>
+    </div>
+    <p class="examples-label">Try an example:</p>
+    <div class="chips">
+      <span class="chip" onclick="tryUrl('https://www.google.com')">google.com</span>
+      <span class="chip" onclick="tryUrl('https://www.github.com')">github.com</span>
+      <span class="chip" onclick="tryUrl('https://www.amazon.com')">amazon.com</span>
+      <span class="chip phishing" onclick="tryUrl('http://paypal.verify-secure-login.suspicious-domain.net/confirm')">paypal phishing</span>
+      <span class="chip phishing" onclick="tryUrl('http://secure-bankofamerica-login.xyz/verify/account/password')">bank phishing</span>
+    </div>
+  </div>
+
+  <div id="resultContainer"></div>
+  <div id="historyContainer"></div>
+</main>
+
+<footer>
+  Built by <a href="https://www.linkedin.com/in/bhargavi-chowdary-chilukuri-a3ba45225/" target="_blank">Bhargavi Chowdary Chilukuri</a> &nbsp;·&nbsp;
+  MS Computer Science, UCF &nbsp;·&nbsp;
+  <a href="https://github.com/bhargu2805/phishguard" target="_blank">GitHub</a> &nbsp;·&nbsp;
+  <a href="https://phishguard-eeff.onrender.com/v1/health" target="_blank">API Status</a>
+</footer>
+
+<script>
+const API = 'https://phishguard-eeff.onrender.com';
+let history = [];
+let totalChecks = 0;
+
+function tryUrl(url) {
+  document.getElementById('urlInput').value = url;
+  checkUrl();
+}
+
+async function checkUrl() {
+  const input = document.getElementById('urlInput');
+  const btn = document.getElementById('checkBtn');
+  const resultContainer = document.getElementById('resultContainer');
+  const url = input.value.trim();
+  if (!url) { input.focus(); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  resultContainer.innerHTML = `
+    <div class="result">
+      <div class="result-header">
+        <div class="result-icon" style="background:#E5E7EB"><div class="spinner"></div></div>
+        <span class="result-title" style="color:#6B7280">Analyzing URL...</span>
+      </div>
+      <div class="result-url">${url}</div>
+    </div>`;
+
+  try {
+    const res = await fetch(API + '/v1/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const pct = Math.round(data.phishing_probability * 100);
+    const isSafe = !data.is_phishing;
+    const cls = isSafe ? 'safe' : 'danger';
+    const title = isSafe ? 'This URL looks safe' : 'Phishing detected!';
+    const iconSafe = `<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>`;
+    const iconDanger = `<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+
+    resultContainer.innerHTML = `
+      <div class="result ${cls}">
+        <div class="result-header">
+          <div class="result-icon ${cls}">${isSafe ? iconSafe : iconDanger}</div>
+          <span class="result-title ${cls}">${title}</span>
+        </div>
+        <div class="result-url">${url}</div>
+        <div class="prob-row">
+          <span class="prob-number ${cls}">${pct}%</span>
+          <span class="prob-label">phishing probability</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill ${cls}" style="width:0%" id="barFill"></div></div>
+        <div class="result-meta">
+          <div class="meta-item">Model: <span>${data.model}</span></div>
+          <div class="meta-item">Latency: <span>${data.latency_ms}ms</span></div>
+          <div class="meta-item">Threshold: <span>50%</span></div>
+        </div>
+      </div>`;
+
+    setTimeout(() => { const b = document.getElementById('barFill'); if (b) b.style.width = pct + '%'; }, 50);
+    totalChecks++;
+    document.getElementById('checksCount').textContent = totalChecks;
+    history.unshift({ url, pct, cls });
+    if (history.length > 6) history.pop();
+    renderHistory();
+  } catch (e) {
+    resultContainer.innerHTML = `
+      <div class="result error">
+        <div class="result-header">
+          <div class="result-icon" style="background:#FECACA">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#991B1B"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          </div>
+          <span class="result-title" style="color:#991B1B">Could not reach API</span>
+        </div>
+        <p style="font-size:13px;color:#7F1D1D;margin-top:4px">The free tier may be waking up — wait 30 seconds and try again. <a href="https://phishguard-eeff.onrender.com/v1/health" target="_blank" style="color:#991B1B">Check API status</a></p>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check URL';
+  }
+}
+
+function renderHistory() {
+  if (history.length < 2) return;
+  document.getElementById('historyContainer').innerHTML = `
+    <div class="history">
+      <p class="history-title">Recent checks</p>
+      ${history.map(h => `
+        <div class="history-item">
+          <span class="dot ${h.cls}"></span>
+          <span class="history-url">${h.url}</span>
+          <span class="history-pct ${h.cls}">${h.pct}%</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkUrl(); });
+</script>
+</body>
+</html>
